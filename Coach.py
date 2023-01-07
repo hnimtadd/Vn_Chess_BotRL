@@ -52,10 +52,16 @@ class Coach():
 
         while True:
             episodeStep += 1
+            # if len(board[0]) == 0:
+            #     print(episodeStep)
+            #     exit()
             canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer)
+            # print(canonicalBoard.tostring())
+            # input()
             temp = int(episodeStep < self.args.tempThreshold)
 
             pi = self.mcts.getActionProb(canonicalBoard, temp=temp)
+            # print(pi)
             sym = self.game.getSymmetries(canonicalBoard, pi)
             for b, p in sym:
                 trainExamples.append([b, self.curPlayer, p, None])
@@ -114,11 +120,20 @@ class Coach():
             nmcts = MCTS(self.game, self.nnet, self.args)
 
             log.info('PITTING AGAINST PREVIOUS VERSION')
+            from vnchess.VnChessPlayers import GreedyVnChessPlayer
+            gp = GreedyVnChessPlayer(self.game).play
+            arena = Arena(lambda x: np.argmax(pmcts.getActionProb(x, temp=0)),
+                            gp, self.game)
+                        #   lambda x: np.argmax(nmcts.getActionProb(x, temp=0)), self.game)
+            pwins, nwins, draws = arena.playGames(int(self.args.arenaCompare)/2)
             arena = Arena(lambda x: np.argmax(pmcts.getActionProb(x, temp=0)),
                           lambda x: np.argmax(nmcts.getActionProb(x, temp=0)), self.game)
-            pwins, nwins, draws = arena.playGames(self.args.arenaCompare)
-
+            awin, bwin, abdraws = arena.playGames(int(self.args.arenaCompare)/2)
+            pwins += awin
+            nwins += bwin
+            draws += abdraws
             log.info('NEW/PREV WINS : %d / %d ; DRAWS : %d' % (nwins, pwins, draws))
+            log.info('win rate: {.3f}'.format(pwins/(self.args.arenaCompare)))
             if pwins + nwins == 0 or float(nwins) / (pwins + nwins) < self.args.updateThreshold:
                 log.info('REJECTING NEW MODEL')
                 self.nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp.pth.tar')

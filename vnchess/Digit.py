@@ -33,3 +33,4 @@ if __name__ == "__main__":
     for m in validmoves:
         i = m[0] +m[1]*size+m[2]*size**2 + m[3]*size**3
         print(i,":",int2base(i,size, 4))
+    print(int2base(213, 5, 4))

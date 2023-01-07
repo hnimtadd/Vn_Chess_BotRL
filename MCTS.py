@@ -36,11 +36,20 @@ class MCTS():
         """
         for i in range(self.args.numMCTSSims):
             self.search(canonicalBoard)
-
         s = self.game.stringRepresentation(canonicalBoard)
+        valids = self.game.getValidMoves(canonicalBoard, 1)
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
-
+        counts = counts * valids
+        # for count in counts:
+        #     print(count, end=' ')
+        # exit()
         if temp == 0:
+            if np.sum(counts) == 0:
+                validas = np.array(np.argwhere(valids == 1)).flatten()
+                a = np.random.choice(validas)
+                probs = [0] * len(counts)
+                probs[a] = 1
+                return probs
             bestAs = np.array(np.argwhere(counts == np.max(counts))).flatten()
             bestA = np.random.choice(bestAs)
             probs = [0] * len(counts)
@@ -49,7 +58,7 @@ class MCTS():
 
         counts = [x ** (1. / temp) for x in counts]
         counts_sum = float(sum(counts))
-        probs = [x / counts_sum for x in counts]
+        probs = [x / (counts_sum ) for x in counts]
         return probs
 
     def search(self, canonicalBoard):
@@ -72,9 +81,14 @@ class MCTS():
             v: the negative of the value of the current canonicalBoard
         """
 
+        # print(canonicalBoard.tostring())
         s = self.game.stringRepresentation(canonicalBoard)
-
+        # print(s)
+        # input()
         if s not in self.Es:
+            # print(s)
+            self.Es[s] = self.game.getGameEnded(canonicalBoard, 1)
+        else:
             self.Es[s] = self.game.getGameEnded(canonicalBoard, 1)
         if self.Es[s] != 0:
             # terminal node
@@ -82,9 +96,9 @@ class MCTS():
 
         if s not in self.Ps:
             # leaf node
-            self.Ps[s], v = self.nnet.predict(canonicalBoard)
             valids = self.game.getValidMoves(canonicalBoard, 1)
-            self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+            self.Ps[s], v = self.nnet.predict(canonicalBoard)
+            # self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             sum_Ps_s = np.sum(self.Ps[s])
             if sum_Ps_s > 0:
                 self.Ps[s] /= sum_Ps_s  # renormalize
@@ -100,8 +114,8 @@ class MCTS():
             self.Vs[s] = valids
             self.Ns[s] = 0
             return -v
+        valids = self.game.getValidMoves(canonicalBoard, 1)
 
-        valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = -1
 
@@ -119,9 +133,30 @@ class MCTS():
                     best_act = a
 
         a = best_act
+        try:
+            from vnchess.Digit import int2base
+            from vnchess.VnChessUtils import is_valid_move
+            move = int2base(a, self.game.n, 4)
+            start = (move[0], move[1])
+            end = (move[2], move[3])
+            move = (start, end)
+            assert(is_valid_move(canonicalBoard.prev_pieces, canonicalBoard.pieces, 1, move))
+        except:
+            # from vnchess.VnChessUtils import is_valid_move
+            # from vnchess.VnChessUtils import print_board, get_all_actions
+            # print(is_valid_move(canonicalBoard.prev_pieces, canonicalBoard.pieces, 1, move))
+            # print_board(canonicalBoard.pieces)
+            # if canonicalBoard.prev_pieces is not None:
+            #     print_board(canonicalBoard.prev_pieces)
+            # from vnchess.Digit import int2base
+            # print(int2base(a, self.game.n, 4))
+            # print('avail actions: ', get_all_actions(canonicalBoard.prev_pieces, canonicalBoard.pieces, 1))
+            exit()
+            # self.game.display(canonicalBoard)
         next_s, next_player = self.game.getNextState(canonicalBoard, 1, a)
+        assert(np.array(canonicalBoard.pieces).tolist() == np.array(next_s.prev_pieces).tolist())
+        assert(canonicalBoard.time == next_s.time - 1)
         next_s = self.game.getCanonicalForm(next_s, next_player)
-
         v = self.search(next_s)
 
         if (s, a) in self.Qsa:
@@ -129,6 +164,7 @@ class MCTS():
             self.Nsa[(s, a)] += 1
 
         else:
+            from vnchess.VnChessUtils import is_valid_move
             self.Qsa[(s, a)] = v
             self.Nsa[(s, a)] = 1
 

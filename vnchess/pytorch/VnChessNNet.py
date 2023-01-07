@@ -14,11 +14,11 @@ class VnChessNNet(nn.Module):
         self.board_x, self.board_y = game.getBoardSize()
         self.action_size = game.getActionSize()
         self.args = args
-
         super(VnChessNNet, self).__init__()
+        self._net_init()
 
 
-    def Net_init(self):
+    def _net_init(self):
         '''
         Init cnn of model
         '''
@@ -50,6 +50,17 @@ class VnChessNNet(nn.Module):
 
         s = F.relu(self.bn1(self.conv1(s)))
         #(batch_size, num_channels, board_x, board_y)
+        s = F.relu(self.bn2(self.conv2(s)))
+        s = F.relu(self.bn3(self.conv3(s)))
+        s = F.relu(self.bn4(self.conv4(s)))
 
-        # s = 
+        s = s.view(-1, self.args.num_channels*(self.board_x-4)*(self.board_y-4))
 
+        s = F.dropout(F.relu(self.fc_bn1(self.fc1(s))),p=self.args.dropout, training=self.training)
+        s = F.dropout(F.relu(self.fc_bn2(self.fc2(s))),p=self.args.dropout, training=self.training)
+
+        pi = self.fc3(s)
+        # pi = pi * valids
+        v = self.fc4(s)
+
+        return F.log_softmax(pi, dim=1), torch.tanh(v)

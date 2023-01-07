@@ -1,6 +1,6 @@
 from enum import Enum
 import copy
-from Digit import int2base
+from .Digit import int2base
 class Action(Enum):
     MOVE_UP         = ( 1,  0)
     MOVE_DOWN       = (-1,  0)
@@ -34,6 +34,13 @@ class Action(Enum):
         return Action((-x, -y))
 
     @staticmethod
+    def get_actions():
+        return [Action.MOVE_DOWN, Action.MOVE_DOWN_LEFT, Action.MOVE_DOWN_RIGHT, Action.MOVE_LEFT,Action.MOVE_UP_LEFT, Action.MOVE_UP_RIGHT,  Action.MOVE_RIGHT, Action.MOVE_UP]
+    @staticmethod
+    def get_odd_actions():
+        return [Action.MOVE_DOWN, Action.MOVE_LEFT ,  Action.MOVE_RIGHT, Action.MOVE_UP]
+
+    @staticmethod
     def get_half_actions():
         return [Action.MOVE_UP, Action.MOVE_RIGHT, Action.MOVE_UP_RIGHT, Action.MOVE_UP_LEFT]
     
@@ -49,10 +56,11 @@ def get_init_board():
             [-1, -1, -1, -1, -1]]
 
 def get_active_position(_prev_board, _board, _player_num):
-    if _prev_board == None:
+    if _prev_board is None:
         return None, False, None
     active_position = None
     is_possibility_trap = True
+    prev_position = None
     for i in range(5):
         for j in range(5):
             # Nuoc di an quan khong phai la mo
@@ -62,7 +70,14 @@ def get_active_position(_prev_board, _board, _player_num):
                 active_position = i, j
             if _prev_board[i][j] == _player_num and _board[i][j]==0:
                 prev_position = i, j
-
+    # try:
+    #     assert(prev_position is not None)
+    # except:
+    #     print_board(_prev_board)
+    #     print()
+    #     print_board(_board)
+    #     print(_player_num)
+    #     exit()
     return active_position, is_possibility_trap, prev_position
 
 def get_traps(board, player_num, prev_position):
@@ -98,7 +113,7 @@ def get_actions_of_chessman(_board, _pos):
 
 def get_surrounded_chesses(board, player_num):
     # print("Getting surround team")
-    current_board = copy.deep_copy(board)
+    current_board = copy.deepcopy(board)
     # print(current_board)
     w, h = len(current_board), len(current_board[0])
     teams = []
@@ -233,9 +248,9 @@ def print_board(_board):
     for i in range(len(_board)).__reversed__():
         for j in range(len(_board[0])):
             if _board[i][j] == 1:
-                print("X", end="\t")
-            elif _board[i][j] == -1:
                 print("O", end="\t")
+            elif _board[i][j] == -1:
+                print("X", end="\t")
             elif _board[i][j] == 0:
                 print("_", end="\t")
             else:
@@ -281,9 +296,9 @@ def get_avail_actions(position):
     x, y = position
     index_sum = x + y
     if index_sum % 2 == 0:
-        valid_actions = list(Action)
+        valid_actions = Action.get_actions()
     else:
-        valid_actions = [Action.MOVE_UP, Action.MOVE_DOWN, Action.MOVE_LEFT, Action.MOVE_RIGHT]
+        valid_actions = Action.get_odd_actions()
     result = []
     for action in valid_actions:
         end = blind_move(position, action)
@@ -348,13 +363,26 @@ def get_all_actions(_prev_board, _board, _player_num):
     
     # random.shuffle(all_actions)
     # np.random.shuffle(all_actions)
+    
     return all_actions
 
 def is_valid_move(prev_board, board, player, move):
     moves = get_all_actions(prev_board,board,player)
+
+    # print(player, moves)
+    # print_board(board)
     if move in moves:
         return True
     return False
+def get_avail_moves(_board, _player_num):
+    all_actions = []
+    for i in range(len(_board)):
+        for j in range(len(_board[0])):
+            if _board[i][j] == _player_num:
+                actions = get_actions_of_chessman(_board, (i, j))
+                all_actions += [((i, j), blind_move((i, j), action)) for action in actions]
+    return all_actions
+
 
 if __name__ == "__main__":
     prev_board = [
